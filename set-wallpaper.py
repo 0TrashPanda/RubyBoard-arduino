@@ -1,8 +1,18 @@
 import requests
 import ctypes
 import os
+import argparse
 
-image_url = "https://cdn.discordapp.com/attachments/646045819992145926/1109220021042954300/improtant.png"
+# Create an ArgumentParser object
+parser = argparse.ArgumentParser(description='Process a URL.')
+
+# Add an argument for the URL with a default value
+parser.add_argument('url', type=str, nargs='?', default='https://cdn.discordapp.com/attachments/646045819992145926/1109220021042954300/improtant.png',
+                    help='the URL to process (default: https://cdn.discordapp.com/attachments/646045819992145926/1109220021042954300/improtant.png)')
+# Parse the command-line arguments
+args = parser.parse_args()
+# Access the parsed URL
+image_url = args.url
 img_data = requests.get(image_url).content
 
 # Save the image to a specific path
