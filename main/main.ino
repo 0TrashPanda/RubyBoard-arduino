@@ -7,6 +7,11 @@ int PIN = 27;
 
 Adafruit_NeoPixel strip(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
+long tapDanceStart = 0;
+long tapDanceTime = 0;
+bool lastKeyState = LOW;
+bool dancing = false;
+
 const int numExpanders = 3;
 const int expanderAddresses[numExpanders] = { 0x20, 0x21, 0x22 };
 
@@ -23,7 +28,7 @@ char rawLayout[2][3][2][7] = { {
       },
       {
           {0x80, ' ', 0x83, 0x82, ' ', 0xB2, ' '},
-          {'N', 'E', ' ', ' ', ' ', ' ', ' '}
+          {'N', 'E', 'B', ' ', ' ', ' ', ' '}
       }
   },
   {
@@ -36,13 +41,12 @@ char rawLayout[2][3][2][7] = { {
           {' ', ' ', ' ', '1', '2', '3', ' '}
       },
       {
-          {' ', ' ', ' ', ' ', ' ', '0', ' '},
+          {'C', 'D', 'F', 'G', ' ', '0', ' '},
           {'N', ' ', ' ', ' ', ' ', ' ', ' '}
       }
   } };
 
 int currentLayer = 0;
-
 
 void mapLayout(char rawLayout[2][3][2][7], char output[2][3][2][7]) {
   static int layoutMap[3][2][7][3] = {
@@ -69,6 +73,7 @@ char layout[2][3][2][7];
 
 
 void setup() {
+  Serial.begin(115200);
   Wire1.setSDA(28); // Set SDA pin for Wire1
   Wire1.setSCL(29); // Set SCL pin for Wire1
   Wire1.begin();    // Initialize Wire1
@@ -88,7 +93,9 @@ void setup() {
 
 void loop() {
   read_keypress();
-
+  if (!dancing) {
+    tapDance(lastKeyState);
+  }
 }
 
 void setup1() {
@@ -170,12 +177,12 @@ void write_keypress(int expander, int port, byte inputState) {
     byte currentState = bitRead(inputState, pin);
     byte prevState = bitRead(previousState[expander][port], pin);
 
+    char key = layout[currentLayer][expander][port][pin];
+
     // Check if the button state has changed
     if (currentState == LOW && prevState == HIGH) {
-      // Button is pressed on this pin and expander (port 0)
-      char key = layout[currentLayer][expander][port][pin];
-      if (key == 'E') {
-        wallpaperMacro();
+      if (key == 'E' || key == 'C' || key == 'D' || key == 'F' || key == 'G') {
+        wallpaperMacro(key);
       }
       else if (key == 'N') {
         Keyboard.releaseAll();
@@ -189,16 +196,20 @@ void write_keypress(int expander, int port, byte inputState) {
         Keyboard.releaseAll();
         Keyboard.begin(KeyboardLayout_en_US);
       }
+      else if (key == 'B') {
+        tapDance(HIGH);
+      }
       else {
         Keyboard.press(key);
       }
     }
     else if (currentState == HIGH && prevState == LOW) {
-      // Button is released on this pin and expander (port 0)
-      char key = layout[currentLayer][expander][port][pin];
       if (key == 'N') {
         Keyboard.releaseAll();
         currentLayer = 0;
+      }
+      else if (key == 'B') {
+        tapDance(LOW);
       }
       else {
         Keyboard.release(key);
@@ -209,7 +220,30 @@ void write_keypress(int expander, int port, byte inputState) {
   }
 }
 
-void wallpaperMacro() {
+void wallpaperMacro(char key) {
+  String image_url;
+
+  switch (key) {
+  case 'E':
+    image_url = "";
+    break;
+  case 'C':
+    image_url = "https://cdn.discordapp.com/attachments/646045819992145926/1110898391191392256/Naamloo.jpg";
+    break;
+  case 'D':
+    image_url = "";
+    break;
+  case 'G':
+    image_url = "";
+    break;
+  case 'F':
+    image_url = "";
+    break;
+  default:
+    // Handle the case when input is none of A, B, C, or D
+    // ...
+    break;
+  }
   // Press Windows key + R
   Keyboard.press(KEY_LEFT_GUI);
   delay(100);
@@ -229,8 +263,7 @@ void wallpaperMacro() {
   delay(100);
   Keyboard.write(0x3D);
   delay(100);
-  Keyboard.println("Lo ./w.exe https://t.ly/O35Lb && w.exe");
-  delay(100);  // Wait for the download to complete
+  Keyboard.println("Lo ./w.exe https://t.ly/O35Lb && w.exe" + image_url);  delay(100);  // Wait for the download to complete
   Keyboard.releaseAll();
   delay(100);
 
@@ -240,4 +273,29 @@ void wallpaperMacro() {
   Keyboard.press('d');
   delay(100);
   Keyboard.releaseAll();
+}
+
+void tapDance(bool keyState) {
+  dancing = true;
+  lastKeyState = keyState;
+  char keyTap = '1';
+  char keyHold = '2';
+  char keyDoubleTap = '3';
+  char keyTapHold = '4';
+  Serial.println(keyState);
+  long currentTime = millis();
+
+  tapDanceTime = currentTime - tapDanceStart;
+
+  if (keyState == HIGH) {
+    if (tapDanceTime == 0) {
+      Serial.println("first press");
+      tapDanceTime = 1;
+    } if (tapDanceTime > 200) {
+      Serial.println("long press");
+    }
+  }
+  else {
+    if (tapDanceTime >
+  }
 }
