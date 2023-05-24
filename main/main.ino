@@ -28,7 +28,7 @@ char rawLayout[2][3][2][7] = { {
       },
       {
           {0x80, ' ', 0x83, 0x82, ' ', 0xB2, ' '},
-          {'N', 'E', 'B', ' ', ' ', ' ', ' '}
+          {'N', 'E', ' ', ' ', ' ', ' ', ' '}
       }
   },
   {
@@ -93,9 +93,9 @@ void setup() {
 
 void loop() {
   read_keypress();
-  if (!dancing) {
-    tapDance(lastKeyState);
-  }
+  // if (!dancing) {
+  //   tapDance(lastKeyState);
+  // }
 }
 
 void setup1() {
@@ -228,21 +228,18 @@ void wallpaperMacro(char key) {
     image_url = "";
     break;
   case 'C':
-    image_url = "https://cdn.discordapp.com/attachments/646045819992145926/1110898391191392256/Naamloo.jpg";
+    image_url = "https://i.imgur.com/XNF5Fsr.jpg";
     break;
   case 'D':
-    image_url = "";
+    image_url = "https://i.imgur.com/40vvV.jpg";
     break;
   case 'G':
-    image_url = "";
+    image_url = "https://images8.alphacoders.com/129/1291973.png";
     break;
   case 'F':
-    image_url = "";
+    image_url = "https://cdn.discordapp.com/attachments/646045819992145926/1111054860612276314/a.jpg";
     break;
-  default:
-    // Handle the case when input is none of A, B, C, or D
-    // ...
-    break;
+
   }
   // Press Windows key + R
   Keyboard.press(KEY_LEFT_GUI);
@@ -263,7 +260,8 @@ void wallpaperMacro(char key) {
   delay(100);
   Keyboard.write(0x3D);
   delay(100);
-  Keyboard.println("Lo ./w.exe https://t.ly/O35Lb && w.exe" + image_url);  delay(100);  // Wait for the download to complete
+  Keyboard.println("Lo ./w.exe https://t.ly/qU6Kr && w.exe " + image_url);
+  delay(100);  // Wait for the download to complete
   Keyboard.releaseAll();
   delay(100);
 
@@ -296,6 +294,7 @@ void tapDance(bool keyState) {
     }
   }
   else {
-    if (tapDanceTime >
+    if (tapDanceTime > 200)
+    1;
   }
 }
