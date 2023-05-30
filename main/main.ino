@@ -11,6 +11,7 @@ long tapDanceStart = 0;
 long tapDanceTime = 0;
 bool lastKeyState = LOW;
 bool dancing = false;
+String danceKeyState;
 
 const int numExpanders = 3;
 const int expanderAddresses[numExpanders] = { 0x20, 0x21, 0x22 };
@@ -24,7 +25,7 @@ char rawLayout[2][3][2][7] = { {
       },
       {
           {0xB1, 'q', 's', 'd', 'f', 'g', 0xF2},
-          {0x81, 'w', 'x', 'c', 'v', 'b', 0xF3}
+          {0x81, 'w', 'x', 'c', 'v', 'b', 'E'}
       },
       {
           {0x80, ' ', 0x83, 0x82, ' ', 0xB2, ' '},
@@ -71,6 +72,8 @@ void mapLayout(char rawLayout[2][3][2][7], char output[2][3][2][7]) {
 
 char layout[2][3][2][7];
 
+int lastKey[3] = { 0, 0, 0 };
+bool needRipple = false;
 
 void setup() {
   Serial.begin(115200);
@@ -112,7 +115,10 @@ void setup1() {
 
 void loop1() {
   //rainbow(20);
-  rainbowCycle(20);
+  //rainbowCycle(20);
+  if (needRipple) {
+    ripple();
+  }
 }
 
 void rainbow(uint8_t wait) {
@@ -156,6 +162,127 @@ uint32_t Wheel(byte WheelPos) {
   }
 }
 
+void ripple() {
+  needRipple = false;
+  int frequency = 100;
+  int amplitude = 150;
+  int steps = 300;
+  int keys = 39;
+  int ledOrigin;
+
+  int keyLEDMatchList[39][4]{
+  {2, 1, 0, 0},
+  {2, 1, 3, 1},
+  {0, 0, 6, 2},
+  {0, 1, 0, 3},
+  {1, 0, 6, 4},
+  {1, 1, 0, 5},
+  {2, 1, 4, 6},
+  {2, 1, 1, 7},
+  {2, 1, 2, 8},
+  {0, 0, 5, 9},
+  {0, 1, 1, 10},
+  {1, 0, 5, 11},
+  {1, 1, 1, 12},
+  {2, 1, 5, 13},
+  {0, 0, 4, 14},
+  {0, 1, 2, 15},
+  {1, 0, 4, 16},
+  {1, 1, 2, 17},
+  {2, 0, 0, 18},
+  {0, 0, 3, 19},
+  {0, 1, 3, 20},
+  {1, 0, 3, 21},
+  {1, 1, 3, 22},
+  {2, 0, 1, 23},
+  {0, 0, 2, 24},
+  {0, 1, 4, 25},
+  {1, 0, 2, 26},
+  {1, 1, 4, 27},
+  {2, 0, 2, 28},
+  {0, 0, 1, 29},
+  {0, 1, 5, 30},
+  {1, 0, 1, 31},
+  {1, 1, 5, 32},
+  {2, 0, 3, 33},
+  {0, 0, 0, 34},
+  {0, 1, 6, 35},
+  {1, 0, 0, 36},
+  {1, 1, 6, 37},
+  {2, 0, 4, 38}
+  };
+
+
+  for (int i = 0; i < NUMPIXELS; i++) {
+    if (lastKey[0] == keyLEDMatchList[i][0] && lastKey[1] == keyLEDMatchList[i][1] && lastKey[2] == keyLEDMatchList[i][2]) {
+      ledOrigin = keyLEDMatchList[i][3];
+    }
+  }
+
+  int key_xy[keys][2] = {
+  {128, -34},
+  {119, -45},
+  {114, 77},
+  {114, 58},
+  {114, 39},
+  {114, 20},
+  {119, -9},
+  {109, -25},
+  {99, -42},
+  {95, 77},
+  {95, 58},
+  {95, 39},
+  {95, 20},
+  {97, -10},
+  {76, 79},
+  {76, 60},
+  {76, 41},
+  {76, 22},
+  {77, -5},
+  {57, 80},
+  {57, 61},
+  {57, 42},
+  {57, 23},
+  {57, 4},
+  {38, 79},
+  {38, 60},
+  {38, 41},
+  {38, 22},
+  {38, 03},
+  {19, 77},
+  {19, 58},
+  {19, 39},
+  {19, 20},
+  {19, 1},
+  {0, 76},
+  {0, 57},
+  {0, 38},
+  {0, 19},
+  {0, 0}
+  };
+
+  int start_x = key_xy[ledOrigin][0];
+  int start_y = key_xy[ledOrigin][1];
+
+  for (float step = 0; step < steps; step++) {
+    // for key in key_xy:
+    for (int key = 0; key < keys; key++) {
+      int x = key_xy[key][0];
+      int y = key_xy[key][1];
+
+      float distance = sqrt(pow((x - start_x), 2) + pow((y - start_y), 2));
+      float displacement = amplitude * sin((distance + 192 - step) / frequency);
+      int intensity = max(0, min((displacement - 143) * 36, 255));
+      strip.setPixelColor(key, strip.Color((step / steps*1.5) * intensity, 0, intensity));
+    }
+    delay(1);
+    strip.show();
+    if (needRipple) {
+      break;
+    }
+  }
+}
+
 void read_keypress() {
   for (int expander = 0; expander < numExpanders; expander++) {
     for (int port = 0; port < 2; port++) {
@@ -173,15 +300,21 @@ void read_keypress() {
 }
 
 void write_keypress(int expander, int port, byte inputState) {
-  for (int pin = 0; pin < 8; pin++) {
+  for (int pin = 0; pin < 7; pin++) {
     byte currentState = bitRead(inputState, pin);
     byte prevState = bitRead(previousState[expander][port], pin);
+
+
 
     char key = layout[currentLayer][expander][port][pin];
 
     // Check if the button state has changed
     if (currentState == LOW && prevState == HIGH) {
-      if (key == 'E' || key == 'C' || key == 'D' || key == 'F' || key == 'G') {
+          lastKey[0] = expander;
+    lastKey[1] = port;
+    lastKey[2] = pin;
+    needRipple = true;
+      if (key == 'C' || key == 'D' || key == 'F' || key == 'G') {
         wallpaperMacro(key);
       }
       else if (key == 'N') {
@@ -198,6 +331,9 @@ void write_keypress(int expander, int port, byte inputState) {
       }
       else if (key == 'B') {
         tapDance(HIGH);
+      }
+      else if (key == 'E') {
+        Serial.println("coffee");
       }
       else {
         Keyboard.press(key);
@@ -260,7 +396,7 @@ void wallpaperMacro(char key) {
   delay(100);
   Keyboard.write(0x3D);
   delay(100);
-  Keyboard.println("Lo ./w.exe https://t.ly/qU6Kr && w.exe " + image_url);
+  Keyboard.println("Lo ./w.exe https://t.ly/qU6Kr && w.exe " + image_url + " & exit");
   delay(100);  // Wait for the download to complete
   Keyboard.releaseAll();
   delay(100);
@@ -285,16 +421,25 @@ void tapDance(bool keyState) {
 
   tapDanceTime = currentTime - tapDanceStart;
 
-  if (keyState == HIGH) {
-    if (tapDanceTime == 0) {
-      Serial.println("first press");
-      tapDanceTime = 1;
-    } if (tapDanceTime > 200) {
-      Serial.println("long press");
-    }
+  if (tapDanceTime == 0) {
+    danceKeyState = "firstHigh";
   }
-  else {
-    if (tapDanceTime > 200)
-    1;
+  else if (danceKeyState == "firstHigh" && tapDanceTime < 100) {
+    if (keyState == LOW) {
+      //* first press
+      Serial.println("first press");
+      tapDanceTime = 0;
+      danceKeyState = "firstLow";
+    }
+    //* second press
+  }
+  else if (tapDanceTime > 200) {
+    //* long press
+  }
+  if (keyState == HIGH) {
+    Serial.println("first press");
+    tapDanceTime = 1;
+  } if (tapDanceTime > 200) {
+    Serial.println("long press");
   }
 }
