@@ -404,41 +404,6 @@ void wallpaperMacro(char key) {
   Keyboard.releaseAll();
 }
 
-void tapDance(bool keyState) {
-  dancing = true;
-  lastKeyState = keyState;
-  char keyTap = '1';
-  char keyHold = '2';
-  char keyDoubleTap = '3';
-  char keyTapHold = '4';
-  Serial.println(keyState);
-  long currentTime = millis();
-
-  tapDanceTime = currentTime - tapDanceStart;
-
-  if (tapDanceTime == 0) {
-    danceKeyState = "firstHigh";
-  }
-  else if (danceKeyState == "firstHigh" && tapDanceTime < 100) {
-    if (keyState == LOW) {
-      //* first press
-      Serial.println("first press");
-      tapDanceTime = 0;
-      danceKeyState = "firstLow";
-    }
-    //* second press
-  }
-  else if (tapDanceTime > 200) {
-    //* long press
-  }
-  if (keyState == HIGH) {
-    Serial.println("first press");
-    tapDanceTime = 1;
-  } if (tapDanceTime > 200) {
-    Serial.println("long press");
-  }
-}
-
 class Ripple {
 private:
   int age = 0;
