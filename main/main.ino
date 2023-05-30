@@ -2,8 +2,9 @@
 #include <Keyboard.h>
 #include <Adafruit_NeoPixel.h>
 
-int PIN = 27;
-#define NUMPIXELS 39
+const int keys = 39;
+const int PIN = 27;
+#define NUMPIXELS keys
 
 Adafruit_NeoPixel strip(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
@@ -72,7 +73,6 @@ void mapLayout(char rawLayout[2][3][2][7], char output[2][3][2][7]) {
 
 char layout[2][3][2][7];
 
-int lastKey[3] = { 0, 0, 0 };
 bool needRipple = false;
 
 void setup() {
@@ -167,10 +167,9 @@ void ripple() {
   int frequency = 100;
   int amplitude = 150;
   int steps = 300;
-  int keys = 39;
   int ledOrigin;
 
-  int keyLEDMatchList[39][4]{
+  int keyLEDMatchList[keys][4]{
   {2, 1, 0, 0},
   {2, 1, 3, 1},
   {0, 0, 6, 2},
@@ -213,11 +212,7 @@ void ripple() {
   };
 
 
-  for (int i = 0; i < NUMPIXELS; i++) {
-    if (lastKey[0] == keyLEDMatchList[i][0] && lastKey[1] == keyLEDMatchList[i][1] && lastKey[2] == keyLEDMatchList[i][2]) {
-      ledOrigin = keyLEDMatchList[i][3];
-    }
-  }
+
 
   int key_xy[keys][2] = {
   {128, -34},
@@ -273,7 +268,7 @@ void ripple() {
       float distance = sqrt(pow((x - start_x), 2) + pow((y - start_y), 2));
       float displacement = amplitude * sin((distance + 192 - step) / frequency);
       int intensity = max(0, min((displacement - 143) * 36, 255));
-      strip.setPixelColor(key, strip.Color((step / steps*1.5) * intensity, 0, intensity));
+      strip.setPixelColor(key, strip.Color((step / steps * 1.5) * intensity, 0, intensity));
     }
     delay(1);
     strip.show();
@@ -310,10 +305,10 @@ void write_keypress(int expander, int port, byte inputState) {
 
     // Check if the button state has changed
     if (currentState == LOW && prevState == HIGH) {
-          lastKey[0] = expander;
-    lastKey[1] = port;
-    lastKey[2] = pin;
-    needRipple = true;
+      lastKey[0] = expander;
+      lastKey[1] = port;
+      lastKey[2] = pin;
+      needRipple = true;
       if (key == 'C' || key == 'D' || key == 'F' || key == 'G') {
         wallpaperMacro(key);
       }
@@ -443,3 +438,178 @@ void tapDance(bool keyState) {
     Serial.println("long press");
   }
 }
+
+class Ripple {
+private:
+  int age = 0;
+  int lifetime;
+  int frequency;
+  int amplitude;
+  int ledOrigin;
+
+  int start_x;
+  int start_y;
+
+
+  const int keyLEDMatchList[keys][4]{
+   {2, 1, 0, 0},
+   {2, 1, 3, 1},
+   {0, 0, 6, 2},
+   {0, 1, 0, 3},
+   {1, 0, 6, 4},
+   {1, 1, 0, 5},
+   {2, 1, 4, 6},
+   {2, 1, 1, 7},
+   {2, 1, 2, 8},
+   {0, 0, 5, 9},
+   {0, 1, 1, 10},
+   {1, 0, 5, 11},
+   {1, 1, 1, 12},
+   {2, 1, 5, 13},
+   {0, 0, 4, 14},
+   {0, 1, 2, 15},
+   {1, 0, 4, 16},
+   {1, 1, 2, 17},
+   {2, 0, 0, 18},
+   {0, 0, 3, 19},
+   {0, 1, 3, 20},
+   {1, 0, 3, 21},
+   {1, 1, 3, 22},
+   {2, 0, 1, 23},
+   {0, 0, 2, 24},
+   {0, 1, 4, 25},
+   {1, 0, 2, 26},
+   {1, 1, 4, 27},
+   {2, 0, 2, 28},
+   {0, 0, 1, 29},
+   {0, 1, 5, 30},
+   {1, 0, 1, 31},
+   {1, 1, 5, 32},
+   {2, 0, 3, 33},
+   {0, 0, 0, 34},
+   {0, 1, 6, 35},
+   {1, 0, 0, 36},
+   {1, 1, 6, 37},
+   {2, 0, 4, 38}
+  };
+
+  const int key_xy[keys][2] = {
+    {128, -34},
+    {119, -45},
+    {114, 77},
+    {114, 58},
+    {114, 39},
+    {114, 20},
+    {119, -9},
+    {109, -25},
+    {99, -42},
+    {95, 77},
+    {95, 58},
+    {95, 39},
+    {95, 20},
+    {97, -10},
+    {76, 79},
+    {76, 60},
+    {76, 41},
+    {76, 22},
+    {77, -5},
+    {57, 80},
+    {57, 61},
+    {57, 42},
+    {57, 23},
+    {57, 4},
+    {38, 79},
+    {38, 60},
+    {38, 41},
+    {38, 22},
+    {38, 03},
+    {19, 77},
+    {19, 58},
+    {19, 39},
+    {19, 20},
+    {19, 1},
+    {0, 76},
+    {0, 57},
+    {0, 38},
+    {0, 19},
+    {0, 0}
+  };
+
+  int ledColors[keys][3] = {
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0}
+  };
+
+
+public:
+  Ripple(int key[3], int lifetime, int frequency, int amplitude) {
+    this->lifetime = lifetime;
+    this->frequency = frequency;
+    this->amplitude = amplitude;
+    age = 0;
+    init(key);
+  }
+
+  void init(int key[3]) {
+    for (int i = 0; i < NUMPIXELS; i++) {
+      if (key[0] == keyLEDMatchList[i][0] && key[1] == keyLEDMatchList[i][1] && key[2] == keyLEDMatchList[i][2]) {
+        ledOrigin = keyLEDMatchList[i][3];
+      }
+    }
+    start_x = key_xy[ledOrigin][0];
+    start_y = key_xy[ledOrigin][1];
+  }
+
+  void renderLEDs() {
+    for (int i = 0; i < NUMPIXELS; i++) {
+      strip.setPixelColor(i, strip.Color(ledColors[i][0], ledColors[i][1], ledColors[i][2]));
+    }
+    strip.show();
+  }
+
+  void getColor() {
+    //loop over all ripple objects
+    
+  }
+
+
+
+
+};
