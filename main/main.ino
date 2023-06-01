@@ -18,7 +18,8 @@ const int expanderAddresses[numExpanders] = { 0x20, 0x21, 0x22 };
 
 byte previousState[numExpanders][2] = { {0} }; // Array to store previous button states for each port
 
-char rawLayout[2][3][2][7] = { {
+const int layers = 3;
+int rawLayout[layers][3][2][7] = { {
       {
           {'~', '1', '2', '3', '4', '5', 0xF0},
           {0xB3, 'a', 'z', 'e', 'r', 't', 0xF1}
@@ -38,18 +39,32 @@ char rawLayout[2][3][2][7] = { {
           {' ', ' ', ' ', '7', '8', '9', ' '}
       },
       {
-          {' ', ' ', ' ', '4', '5', '6', ' '},
+          {' ', ' ', 'M', '4', '5', '6', ' '},
           {' ', ' ', ' ', '1', '2', '3', ' '}
       },
       {
           {'C', 'D', 'F', 'G', ' ', '0', ' '},
           {'N', ' ', ' ', ' ', ' ', ' ', ' '}
       }
+  },
+  {
+      {
+          {0, 1, 2, 3, 4, 5, 6},
+          {10, 11, 12, 13, 14, 15, 16}
+      },
+      {
+          {20, 21, 22, 23, 24, 25, 26},
+          {30 , 31, 32, 33, 34, 35, 36}
+      },
+      {
+          {40 ,41 ,42 ,43 ,44 ,45 ,46},
+          {70 , 69, 70, 70, ' ', ' ', ' '}
+      }
   } };
 
 int currentLayer = 0;
 
-void mapLayout(char rawLayout[2][3][2][7], char output[2][3][2][7]) {
+void mapLayout(int rawLayout[layers][3][2][7], int output[layers][3][2][7]) {
   static int layoutMap[3][2][7][3] = {
   {{{0,0,0}, {0,0,1}, {0,0,2}, {0,0,3}, {0,0,4}, {0,0,5}, {0,0,6}},
    {{0,1,6}, {0,1,5}, {0,1,4}, {0,1,3}, {0,1,2}, {0,1,1}, {0,1,0}}},
@@ -58,7 +73,7 @@ void mapLayout(char rawLayout[2][3][2][7], char output[2][3][2][7]) {
   {{{2,0,4}, {2,0,3}, {2,0,2}, {2,0,1}, {2,0,0}, {2,1,5}, {2,1,4}},
    {{2,1,1}, {2,1,0}, {2,1,2}, {2,1,3}, {2,0,5}, {2,0,6}, {2,1,6}}} };
 
-  for (int layout = 0; layout < 2; layout++) {
+  for (int layout = 0; layout < layers; layout++) {
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 2; j++) {
         for (int k = 0; k < 7; k++) {
@@ -70,12 +85,20 @@ void mapLayout(char rawLayout[2][3][2][7], char output[2][3][2][7]) {
   }
 }
 
-char layout[2][3][2][7];
+int layout[layers][3][2][7];
 
 int lastKey[3] = { 0, 0, 0 };
 bool needRipple = false;
 
+bool mining = false;
+int mineField[5][7];
+int playField[5][7];
+int mineCount[5][7];
+bool firstMove = true;
+
+
 void setup() {
+  randomSeed(analogRead(0));
   Serial.begin(115200);
   Wire1.setSDA(28); // Set SDA pin for Wire1
   Wire1.setSCL(29); // Set SCL pin for Wire1
@@ -111,12 +134,26 @@ void setup1() {
     strip.show();
     delay(50);
   }
+  for (int i = 0; i < layers; i++) {
+    for (int j = 0; j < 3; j++) {
+      for (int k = 0; k < 2; k++) {
+        for (int l = 0; l < 7; l++) {
+          int key = rawLayout[i][j][k][l];
+          Serial.print(key);
+          Serial.print(" ");
+        }
+        Serial.println();
+      }
+    }
+  }
 }
 
 void loop1() {
-  //rainbow(20);
-  //rainbowCycle(20);
-  if (needRipple) {
+  // rainbow(20);
+  if (mining) {
+    miningBombs();
+  }
+  else if (needRipple) {
     ripple();
   }
 }
@@ -273,7 +310,7 @@ void ripple() {
       float distance = sqrt(pow((x - start_x), 2) + pow((y - start_y), 2));
       float displacement = amplitude * sin((distance + 192 - step) / frequency);
       int intensity = max(0, min((displacement - 143) * 36, 255));
-      strip.setPixelColor(key, strip.Color((step / steps*1.5) * intensity, 0, intensity));
+      strip.setPixelColor(key, strip.Color((step / steps * 1.5) * intensity, 0, intensity));
     }
     delay(1);
     strip.show();
@@ -303,18 +340,55 @@ void write_keypress(int expander, int port, byte inputState) {
   for (int pin = 0; pin < 7; pin++) {
     byte currentState = bitRead(inputState, pin);
     byte prevState = bitRead(previousState[expander][port], pin);
-
-
-
-    char key = layout[currentLayer][expander][port][pin];
+    int key = layout[currentLayer][expander][port][pin];
 
     // Check if the button state has changed
     if (currentState == LOW && prevState == HIGH) {
-          lastKey[0] = expander;
-    lastKey[1] = port;
-    lastKey[2] = pin;
-    needRipple = true;
-      if (key == 'C' || key == 'D' || key == 'F' || key == 'G') {
+
+      lastKey[0] = expander;
+      lastKey[1] = port;
+      lastKey[2] = pin;
+      needRipple = true;
+      if (mining) {
+        Serial.print("key: ");
+        Serial.println(key);
+        int key = layout[currentLayer][expander][port][pin];
+        if (key == 69) {
+          stopMining();
+        }
+        else if (key == 70) {
+          Serial.println("mineField");
+          for (int y = 0; y < 5; y++) {
+            for (int x = 0; x < 7; x++) {
+              Serial.print(mineField[y][x]);
+            }
+            Serial.println();
+          }
+          Serial.println("playfield");
+          for (int y = 0; y < 5; y++) {
+            for (int x = 0; x < 7; x++) {
+              Serial.print(playField[y][x]);
+            }
+            Serial.println();
+          }
+          Serial.print("currentLayer: ");
+          Serial.println(currentLayer);
+        }
+        else {
+          int x = key / 10;
+          int y = key % 10;
+
+          Serial.print("key: ");
+          Serial.println(key);
+          Serial.print("x: ");
+          Serial.println(x);
+          Serial.print("y: ");
+          Serial.println(y);
+          updateMineField(x, y, false);
+        }
+      }
+      else if (key == ' ') {}
+      else if (key == 'C' || key == 'D' || key == 'F' || key == 'G') {
         wallpaperMacro(key);
       }
       else if (key == 'N') {
@@ -334,6 +408,11 @@ void write_keypress(int expander, int port, byte inputState) {
       }
       else if (key == 'E') {
         Serial.println("coffee");
+      }
+      else if (key == 'M') {
+        Keyboard.releaseAll();
+        currentLayer = 2;
+        mining = true;
       }
       else {
         Keyboard.press(key);
@@ -442,4 +521,156 @@ void tapDance(bool keyState) {
   } if (tapDanceTime > 200) {
     Serial.println("long press");
   }
+}
+
+void miningBombs() {
+  Serial.println("mining");
+  populateMineField(mineField, 6);
+  Serial.println("populated");
+  while (mining) {
+    renderPlayField(playField);
+    if (!arrayContains(mineField, 8)) {
+      Serial.println("You won!");
+      rainbowCycle(20);
+      stopMining();
+    }
+  }
+
+}
+
+void populateMineField(int mineField[5][7], int mines) {
+  for (int i = 0; i < 5; i++) {
+    for (int j = 0; j < 7; j++) {
+      mineField[i][j] = 8;
+      playField[i][j] = 8;
+    }
+  }
+  // Generate mines
+  int count = 0;
+  while (count < mines) {
+    int row = random(5);
+    int col = random(7);
+    if (mineField[row][col] == 8) {
+      mineField[row][col] = 9;
+      count++;
+    }
+  }
+
+  // Calculate mine counts
+  for (int row = 0; row < 5; row++) {
+    for (int col = 0; col < 7; col++) {
+      if (mineField[row][col] == 8) {
+        int count = 0;
+        for (int i = -1; i <= 1; i++) {
+          for (int j = -1; j <= 1; j++) {
+            int newRow = row + i;
+            int newCol = col + j;
+            if (newRow >= 0 && newRow < 5 && newCol >= 0 && newCol < 7 && mineField[newRow][newCol] == 9) {
+              count++;
+            }
+          }
+        }
+        mineCount[row][col] = count;
+      }
+    }
+  }
+}
+
+void renderPlayField(int playField[5][7]) {
+  // 0 = empty field = 69, 69, 69
+  // 1 = 1 = 47, 149, 250 = #2F95FA
+  // 2 = 2 = 50, 168, 82 = #32A852
+  // 3 = 3 = 250, 145, 47 = #FA912F
+  // 4 = 4 = 250, 240, 47 = #FAF02F
+  // 5 = 5 = 255, 199, 253 = #FFC7FD
+  // 6 = 6 = 137, 46, 255 = #892EFF
+  // 7 = flags = 255, 23, 54 = #FF1736
+  // 8 sssssss4
+
+  int LEDxyMatrix[5][7] = {
+    {34 ,29, 24, 19, 14 ,9 ,2},
+    {35 ,30, 25, 20, 15 ,10, 3},
+    {36 ,31, 26, 21, 16 ,11, 4},
+    {37 ,32, 27, 22, 17 ,12, 5},
+    {38 ,33, 28, 23, 18 ,13, 6}
+  };
+
+  for (int y = 0; y < 5; y++) {
+    for (int x = 0; x < 7; x++) {
+      int led = LEDxyMatrix[y][x];
+      int tile = playField[y][x];
+      if (tile == 0) {
+        strip.setPixelColor(led, strip.Color(69, 69, 69));
+      }
+      else if (tile == 1) {
+        strip.setPixelColor(led, strip.Color(47, 149, 250));
+      }
+      else if (tile == 2) {
+        strip.setPixelColor(led, strip.Color(50, 168, 82));
+      }
+      else if (tile == 3) {
+        strip.setPixelColor(led, strip.Color(250, 145, 47));
+      }
+      else if (tile == 4) {
+        strip.setPixelColor(led, strip.Color(250, 240, 47));
+      }
+      else if (tile == 5) {
+        strip.setPixelColor(led, strip.Color(255, 199, 253));
+      }
+      else if (tile == 6) {
+        strip.setPixelColor(led, strip.Color(137, 46, 255));
+      }
+      else if (tile == 7) {
+        strip.setPixelColor(led, strip.Color(255, 23, 54));
+      }
+      else if (tile == 8) {
+        strip.setPixelColor(led, strip.Color(0, 0, 0));
+      }
+    }
+  }
+  strip.show();
+}
+
+void updateMineField(int x, int y, bool flag) {
+  if (flag) {
+    if (playField[x][y] == 8) {
+      playField[x][y] = 7;
+    }
+    else if (playField[x][y] == 7) {
+      playField[x][y] = 8;
+    }
+  }
+  else {
+    if (mineField[x][y] == 9) {
+      if (firstMove) {
+        populateMineField(mineField, 6);
+        firstMove = false;
+      }
+      else {
+        Serial.println("You lost!");
+        stopMining();
+      }
+    }
+    else if (mineField[x][y] == 8) {
+      playField[x][y] = mineCount[x][y];
+      mineField[x][y] = 0;
+    }
+  }
+}
+
+void stopMining() {
+  mining = false;
+  currentLayer = 0;
+  Keyboard.releaseAll();
+}
+
+bool arrayContains(int array[5][7], int value) {
+  for (int y = 0; y < 5; y++) {
+    for (int x = 0; x < 7; x++) {
+      if (array[y][x] == value) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
