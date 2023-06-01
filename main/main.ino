@@ -95,10 +95,10 @@ int mineField[5][7];
 int playField[5][7];
 int mineCount[5][7];
 bool firstMove = true;
+int mines = 10;
 
 
 void setup() {
-  randomSeed(analogRead(0));
   Serial.begin(115200);
   Wire1.setSDA(28); // Set SDA pin for Wire1
   Wire1.setSCL(29); // Set SCL pin for Wire1
@@ -349,6 +349,7 @@ void write_keypress(int expander, int port, byte inputState) {
       lastKey[1] = port;
       lastKey[2] = pin;
       needRipple = true;
+      Serial.println(key);
       if (mining) {
         Serial.print("key: ");
         Serial.println(key);
@@ -524,25 +525,26 @@ void tapDance(bool keyState) {
 }
 
 void miningBombs() {
+  randomSeed(millis());
   Serial.println("mining");
-  populateMineField(mineField, 6);
+  populateMineField();
   Serial.println("populated");
   while (mining) {
     renderPlayField(playField);
-    if (!arrayContains(mineField, 8)) {
+    if (!arrayContains(mineField, 11)) {
       Serial.println("You won!");
-      rainbowCycle(20);
-      stopMining();
+      rainbowCycle(2);
+      miningBombs();
     }
   }
 
 }
 
-void populateMineField(int mineField[5][7], int mines) {
+void populateMineField() {
   for (int i = 0; i < 5; i++) {
     for (int j = 0; j < 7; j++) {
-      mineField[i][j] = 8;
-      playField[i][j] = 8;
+      mineField[i][j] = 11;
+      playField[i][j] = 11;
     }
   }
   // Generate mines
@@ -550,8 +552,8 @@ void populateMineField(int mineField[5][7], int mines) {
   while (count < mines) {
     int row = random(5);
     int col = random(7);
-    if (mineField[row][col] == 8) {
-      mineField[row][col] = 9;
+    if (mineField[row][col] == 11) {
+      mineField[row][col] = 10;
       count++;
     }
   }
@@ -559,13 +561,13 @@ void populateMineField(int mineField[5][7], int mines) {
   // Calculate mine counts
   for (int row = 0; row < 5; row++) {
     for (int col = 0; col < 7; col++) {
-      if (mineField[row][col] == 8) {
+      if (mineField[row][col] == 11) {
         int count = 0;
         for (int i = -1; i <= 1; i++) {
           for (int j = -1; j <= 1; j++) {
             int newRow = row + i;
             int newCol = col + j;
-            if (newRow >= 0 && newRow < 5 && newCol >= 0 && newCol < 7 && mineField[newRow][newCol] == 9) {
+            if (newRow >= 0 && newRow < 5 && newCol >= 0 && newCol < 7 && mineField[newRow][newCol] == 10) {
               count++;
             }
           }
@@ -577,16 +579,6 @@ void populateMineField(int mineField[5][7], int mines) {
 }
 
 void renderPlayField(int playField[5][7]) {
-  // 0 = empty field = 69, 69, 69
-  // 1 = 1 = 47, 149, 250 = #2F95FA
-  // 2 = 2 = 50, 168, 82 = #32A852
-  // 3 = 3 = 250, 145, 47 = #FA912F
-  // 4 = 4 = 250, 240, 47 = #FAF02F
-  // 5 = 5 = 255, 199, 253 = #FFC7FD
-  // 6 = 6 = 137, 46, 255 = #892EFF
-  // 7 = flags = 255, 23, 54 = #FF1736
-  // 8 sssssss4
-
   int LEDxyMatrix[5][7] = {
     {34 ,29, 24, 19, 14 ,9 ,2},
     {35 ,30, 25, 20, 15 ,10, 3},
@@ -600,58 +592,67 @@ void renderPlayField(int playField[5][7]) {
       int led = LEDxyMatrix[y][x];
       int tile = playField[y][x];
       if (tile == 0) {
-        strip.setPixelColor(led, strip.Color(69, 69, 69));
+        strip.setPixelColor(led, strip.Color(69, 69, 69)); // empty = #454545
       }
       else if (tile == 1) {
-        strip.setPixelColor(led, strip.Color(47, 149, 250));
+        strip.setPixelColor(led, strip.Color(0, 0, 255)); // 1 = #0000FF
       }
       else if (tile == 2) {
-        strip.setPixelColor(led, strip.Color(50, 168, 82));
+        strip.setPixelColor(led, strip.Color(0, 250, 0));// 2 = #00FA00
       }
       else if (tile == 3) {
-        strip.setPixelColor(led, strip.Color(250, 145, 47));
+        strip.setPixelColor(led, strip.Color(255, 255, 0));// 4 = #FFFF00
       }
       else if (tile == 4) {
-        strip.setPixelColor(led, strip.Color(250, 240, 47));
+        strip.setPixelColor(led, strip.Color(255, 102, 0));// 3 = #FF6600
       }
       else if (tile == 5) {
-        strip.setPixelColor(led, strip.Color(255, 199, 253));
+        strip.setPixelColor(led, strip.Color(255, 0, 166));// 5 = #FF00A6
       }
       else if (tile == 6) {
-        strip.setPixelColor(led, strip.Color(137, 46, 255));
+        strip.setPixelColor(led, strip.Color(0, 255, 221));// 7 = #00FFDD
       }
       else if (tile == 7) {
-        strip.setPixelColor(led, strip.Color(255, 23, 54));
+        strip.setPixelColor(led, strip.Color(119, 0, 255));// 6 = #7700FF
       }
       else if (tile == 8) {
-        strip.setPixelColor(led, strip.Color(0, 0, 0));
+        strip.setPixelColor(led, strip.Color(255, 0, 89));// 8 = #FF0059
+      }
+      else if (tile == 9) {
+        strip.setPixelColor(led, strip.Color(255, 0, 0));// flag = #FF0000
+      }
+      else if (tile == 10) {
+        strip.setPixelColor(led, strip.Color(0, 0, 0));// bomb = #000000
+      }
+      else if (tile == 11) {
+        strip.setPixelColor(led, strip.Color(0, 0, 0));// unknown = #000000
       }
     }
+    strip.show();
   }
-  strip.show();
 }
 
 void updateMineField(int x, int y, bool flag) {
   if (flag) {
-    if (playField[x][y] == 8) {
-      playField[x][y] = 7;
+    if (playField[x][y] == 11) {
+      playField[x][y] = 9;
     }
-    else if (playField[x][y] == 7) {
-      playField[x][y] = 8;
+    else if (playField[x][y] == 9) {
+      playField[x][y] = 11;
     }
   }
   else {
-    if (mineField[x][y] == 9) {
+    if (mineField[x][y] == 10) {
       if (firstMove) {
-        populateMineField(mineField, 6);
+        populateMineField();
         firstMove = false;
       }
       else {
         Serial.println("You lost!");
-        stopMining();
+        populateMineField();
       }
     }
-    else if (mineField[x][y] == 8) {
+    else if (mineField[x][y] == 11) {
       playField[x][y] = mineCount[x][y];
       mineField[x][y] = 0;
     }
