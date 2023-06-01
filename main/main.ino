@@ -96,6 +96,8 @@ int playField[5][7];
 int mineCount[5][7];
 bool firstMove = true;
 int mines = 10;
+int mineKey = 0;
+unsigned long startMineKey = 0;
 
 
 void setup() {
@@ -376,6 +378,8 @@ void write_keypress(int expander, int port, byte inputState) {
           Serial.println(currentLayer);
         }
         else {
+          mineKey = key;
+          startMineKey = millis();
           int x = key / 10;
           int y = key % 10;
 
@@ -420,6 +424,15 @@ void write_keypress(int expander, int port, byte inputState) {
       }
     }
     else if (currentState == HIGH && prevState == LOW) {
+      if (mining) {
+        unsigned long currenttime = millis();
+        int keyHoldTime = currenttime - startMineKey;
+        if (keyHoldTime < 50) {
+          int x = mineKey / 10;
+          int y = mineKey % 10;
+          updateMineField(x, y, true);
+        }
+      }
       if (key == 'N') {
         Keyboard.releaseAll();
         currentLayer = 0;
@@ -429,6 +442,16 @@ void write_keypress(int expander, int port, byte inputState) {
       }
       else {
         Keyboard.release(key);
+      }
+    }
+
+    if (mining) {
+      unsigned long currenttime = millis();
+      int keyHoldTime = currenttime - startMineKey;
+      if (keyHoldTime > 250) {
+        int x = mineKey / 10;
+        int y = mineKey % 10;
+        updateMineField(x, y, true);
       }
     }
 
